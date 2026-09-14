@@ -1,0 +1,11 @@
+# Compiled binaries and npm wrapper dependencies
+/bin/
+/dist/
+/packages/npm/node_modules/
+
+# Go build/test artifacts
+*.exe
+*.test
+*.out
+coverage.txt
+coverage.html

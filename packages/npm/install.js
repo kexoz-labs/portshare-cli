@@ -41,7 +41,7 @@ async function downloadAndExtract() {
     const assetName = `portshare-${platform}-${arch}${ext}`;
     
     // We will use the 'v' prefix for versions to match tags (e.g. v1.0.0)
-    const url = `https://github.com/jagadesh31/Portshare/releases/download/v${VERSION}/${assetName}`;
+    const url = `https://github.com/kexoz/portshare-cli/releases/download/v${VERSION}/${assetName}`;
     
     console.log(`Downloading Portshare from: ${url}`);
 

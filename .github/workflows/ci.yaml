@@ -1,8 +1,10 @@
-﻿name: CI
+name: CI
+
 on:
   push:
     branches: [main]
   pull_request:
+
 jobs:
   go:
     runs-on: ubuntu-latest
@@ -11,7 +13,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-      - name: Vet + build CLI
+      - name: Vet + test + build
         run: |
           go vet ./...
+          go test ./...
           go build ./...

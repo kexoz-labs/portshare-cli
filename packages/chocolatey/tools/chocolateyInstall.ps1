@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
 $version = '1.0.6'
-$url64 = "https://github.com/jagadesh31/Portshare/releases/download/v$version/portshare-windows-amd64.exe"
+$url64 = "https://github.com/kexoz/portshare-cli/releases/download/v$version/portshare-windows-amd64.exe"
 
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName

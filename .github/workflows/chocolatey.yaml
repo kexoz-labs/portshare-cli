@@ -22,7 +22,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.tag }}"
-          $url = "https://github.com/jagadesh31/Portshare/releases/download/v$version/portshare-windows-amd64.exe"
+          $url = "https://github.com/kexoz/portshare-cli/releases/download/v$version/portshare-windows-amd64.exe"
           Invoke-WebRequest -Uri $url -OutFile portshare.exe
           $sha = (Get-FileHash portshare.exe -Algorithm SHA256).Hash.ToLower()
           echo "sha=$sha" >> $env:GITHUB_OUTPUT
@@ -30,19 +30,17 @@ jobs:
       - name: Update install script with real checksum
         shell: pwsh
         run: |
-          $version = "${{ steps.version.outputs.tag }}"
-          $sha = "${{ steps.sha.outputs.sha }}"
-          $content = Get-Content chocolatey/tools/chocolateyInstall.ps1 -Raw
-          $content = $content -replace "\`\$version = '.*'", "`$version = '$version'"
-          $content = $content -replace 'PLACEHOLDER_SHA256', $sha
-          Set-Content chocolatey/tools/chocolateyInstall.ps1 $content
+          $content = Get-Content packages/chocolatey/tools/chocolateyInstall.ps1 -Raw
+          $content = $content -replace "`$version = '.*'", "`$version = '${{ steps.version.outputs.tag }}'"
+          $content = $content -replace 'PLACEHOLDER_SHA256', "${{ steps.sha.outputs.sha }}"
+          Set-Content packages/chocolatey/tools/chocolateyInstall.ps1 $content
 
       - name: Install Chocolatey and pack
         shell: pwsh
         run: |
-          choco pack chocolatey/portshare.nuspec --version ${{ steps.version.outputs.tag }} --output-directory chocolatey/
+          choco pack packages/chocolatey/portshare.nuspec --version ${{ steps.version.outputs.tag }} --output-directory packages/chocolatey/
 
       - name: Push to Chocolatey
         shell: pwsh
         run: |
-          choco push chocolatey/portshare.${{ steps.version.outputs.tag }}.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCOLATEY_API_KEY }}
+          choco push packages/chocolatey/portshare.${{ steps.version.outputs.tag }}.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCOLATEY_API_KEY }}

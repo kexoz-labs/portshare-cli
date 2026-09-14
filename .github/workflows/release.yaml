@@ -1,0 +1,124 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Go CLI binaries (windows/linux/macos × amd64/arm64) ────────────────
+  cli:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Build CLI
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          exe=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then exe=".exe"; fi
+          go build -ldflags "-X portshare/cmd.Version=${{ github.ref_name }}" \
+            -o "dist/portshare-${{ matrix.goos }}-${{ matrix.goarch }}${exe}" .
+
+      - name: Upload CLI Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/portshare-*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── CLI container image on Docker Hub ─────────────────────────────────
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push CLI image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/portshare:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/portshare:${{ github.ref_name }}
+
+  # ── NPM Package Publish ───────────────────────────────────────────────
+  npm:
+    needs: cli
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Bump npm package version to match release tag
+        working-directory: packages/npm
+        run: npm version ${{ github.ref_name }} --no-git-tag-version --allow-same-version
+
+      - name: Publish to NPM
+        working-directory: packages/npm
+        run: |
+          npm ci
+          npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PORTSHARE_SKIP_DOWNLOAD: 1
+
+  # ── Smoke Test ────────────────────────────────────────────────────────
+  smoke-test:
+    needs: cli
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download CLI asset
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: kexoz/portshare-cli
+          version: tags/${{ github.ref_name }}
+          file: portshare-linux-amd64
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify Version
+        run: |
+          chmod +x portshare-linux-amd64
+          ./portshare-linux-amd64 --version
