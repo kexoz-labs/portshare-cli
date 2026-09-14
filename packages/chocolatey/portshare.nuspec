@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>portshare</id>
+    <version>$version$</version>
+    <title>PortShare</title>
+    <authors>kexoz</authors>
+    <owners>jagadesh31</owners>
+    <iconUrl>https://portshare.kexoz.dev/icon.png</iconUrl>
+    <licenseUrl>https://github.com/jagadesh31/Portshare/blob/main/LICENSE</licenseUrl>
+    <projectUrl>https://portshare.kexoz.dev</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>PortShare is a fast, developer-first tunnel client. Expose your local development server to the internet with a permanent subdomain in seconds. Alternative to ngrok — open source, self-hostable.</description>
+    <summary>Instant localhost tunnels for developers. ngrok alternative.</summary>
+    <releaseNotes>https://github.com/jagadesh31/Portshare/releases</releaseNotes>
+    <copyright>Copyright 2024 Jagadesh (kexoz)</copyright>
+    <tags>tunnel localhost ngrok developer-tools port-forwarding webhook cli</tags>
+    <docsUrl>https://github.com/jagadesh31/Portshare#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/jagadesh31/Portshare/issues</bugTrackerUrl>
+    <dependencies />
+  </metadata>
+</package>

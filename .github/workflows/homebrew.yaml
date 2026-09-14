@@ -1,0 +1,104 @@
+name: Update Homebrew Tap
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  homebrew:
+    name: Update homebrew formula
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get release version
+        id: version
+        run: echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for CLI assets to be available
+        run: |
+          # Give the release job a moment to upload all assets
+          sleep 30
+
+      - name: Compute SHA256 for macOS arm64 binary
+        id: sha_mac_arm64
+        run: |
+          url="https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-darwin-arm64"
+          sha=$(curl -sL "$url" | sha256sum | awk '{print $1}')
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Compute SHA256 for macOS x64 binary
+        id: sha_mac_x64
+        run: |
+          url="https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-darwin-amd64"
+          sha=$(curl -sL "$url" | sha256sum | awk '{print $1}')
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Compute SHA256 for Linux arm64 binary
+        id: sha_linux_arm64
+        run: |
+          url="https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-linux-arm64"
+          sha=$(curl -sL "$url" | sha256sum | awk '{print $1}')
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Compute SHA256 for Linux x64 binary
+        id: sha_linux_x64
+        run: |
+          url="https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-linux-amd64"
+          sha=$(curl -sL "$url" | sha256sum | awk '{print $1}')
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew tap formula
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: jagadesh31/homebrew-portshare
+          path: tap
+          commit-message: "chore: bump portshare to ${{ steps.version.outputs.tag }}"
+          branch: bump-${{ steps.version.outputs.tag }}
+          title: "Bump portshare to ${{ steps.version.outputs.tag }}"
+          body: "Automated update from the PortShare release workflow."
+          add-paths: Formula/portshare.rb
+
+      - name: Write formula file
+        run: |
+          mkdir -p tap/Formula
+          cat > tap/Formula/portshare.rb << 'EOF'
+          class Portshare < Formula
+            desc "Instant localhost tunnels for developers — ngrok alternative"
+            homepage "https://portshare.kexoz.dev"
+            version "${{ steps.version.outputs.tag }}"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-darwin-arm64"
+                sha256 "${{ steps.sha_mac_arm64.outputs.sha }}"
+              end
+              on_intel do
+                url "https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-darwin-amd64"
+                sha256 "${{ steps.sha_mac_x64.outputs.sha }}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-linux-arm64"
+                sha256 "${{ steps.sha_linux_arm64.outputs.sha }}"
+              end
+              on_intel do
+                url "https://github.com/jagadesh31/Portshare/releases/download/${{ steps.version.outputs.tag }}/portshare-linux-amd64"
+                sha256 "${{ steps.sha_linux_x64.outputs.sha }}"
+              end
+            end
+
+            def install
+              bin.install "portshare-#{OS.mac? ? 'darwin' : 'linux'}-#{Hardware::CPU.arm? ? 'arm64' : 'amd64'}" => "portshare"
+            end
+
+            test do
+              system "#{bin}/portshare", "--version"
+            end
+          end
+          EOF
