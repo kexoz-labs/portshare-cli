@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"time"
 
 	"portshare/config"
@@ -17,10 +18,24 @@ var loginCmd = &cobra.Command{
 	Short: "Link a Google account to unlock 1 GB free bandwidth",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		serverURL := NormalizedServerURL()
+		token, _ := cmd.Flags().GetString("token")
+		if token != "" {
+			os.Setenv("PORTSHARE_TOKEN", token)
+		}
+		
 		cfg, err := config.EnsureIdentity(serverURL)
 		if err != nil {
 			return fmt.Errorf("authentication failed: %w", err)
 		}
+
+		if token != "" || os.Getenv("PORTSHARE_TOKEN") != "" {
+			fmt.Printf("Authenticated successfully as %s (tier: %s) via API token.\n", cfg.ClientID, cfg.Tier())
+			if cfg.OwnerEmail != "" {
+				fmt.Printf("Account email: %s\n", cfg.OwnerEmail)
+			}
+			return nil
+		}
+
 		if cfg.OwnerEmail != "" {
 			fmt.Printf("Already verified as %s (tier: %s).\n", cfg.OwnerEmail, cfg.Tier())
 			return nil
@@ -83,5 +98,6 @@ var loginCmd = &cobra.Command{
 }
 
 func init() {
+	loginCmd.Flags().String("token", "", "Authenticate via an API token (bypasses browser)")
 	rootCmd.AddCommand(loginCmd)
 }

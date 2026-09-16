@@ -24,9 +24,14 @@ type authTransport struct{ base http.RoundTripper }
 
 func (t authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	cfg, _ := LoadConfig()
-	if cfg != nil && cfg.ClientID != "" {
+	token := os.Getenv("PORTSHARE_TOKEN")
+	if token != "" || (cfg != nil && cfg.ClientID != "") {
 		clone := req.Clone(req.Context())
-		clone.Header.Set("X-PortShare-Client-ID", cfg.ClientID)
+		if token != "" {
+			clone.Header.Set("Authorization", "Bearer "+token)
+		} else if cfg != nil && cfg.ClientID != "" {
+			clone.Header.Set("X-PortShare-Client-ID", cfg.ClientID)
+		}
 		req = clone
 	}
 	return t.base.RoundTrip(req)
@@ -114,7 +119,16 @@ func EnsureIdentity(serverURL string) (*Config, error) {
 	payload := map[string]string{"id": cfg.ClientID}
 	payloadBytes, _ := json.Marshal(payload)
 
-	resp, err := HTTPClient.Post(serverURL+"/client/identity", "application/json", bytes.NewReader(payloadBytes))
+	req, err := http.NewRequest("POST", serverURL+"/client/identity", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token := os.Getenv("PORTSHARE_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to contact server: %w", err)
 	}
