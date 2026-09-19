@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   # ── Go CLI binaries (windows/linux/macos × amd64/arm64) ────────────────
@@ -56,18 +57,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── CLI container image on Docker Hub ─────────────────────────────────
+  # ── CLI container image on GitHub Container Registry ───────────────────
   docker:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push CLI image
         uses: docker/build-push-action@v6
@@ -75,9 +77,11 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          # GHCR derives the namespace from the repository owner, which must be
+          # lowercase.
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/portshare:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/portshare:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/portshare:latest
+            ghcr.io/${{ github.repository_owner }}/portshare:${{ github.ref_name }}
 
   # ── NPM Package Publish ───────────────────────────────────────────────
   npm:

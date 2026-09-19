@@ -61,6 +61,9 @@ type Tunnel struct {
 	IsUDP     bool
 	IsPTY     bool
 
+	// OnRequest is an optional callback called after each request is forwarded.
+	OnRequest func(method, path string, status int, durationMs int64)
+
 	conn   *websocket.Conn
 	mu     sync.Mutex
 	binary atomic.Bool
@@ -197,6 +200,8 @@ func (t *Tunnel) handleRequest(req TunnelRequest) {
 		Headers: make(map[string][]string),
 	}
 
+	start := time.Now()
+
 	var reqBody io.Reader
 	if len(req.Body) > 0 {
 		reqBody = bytes.NewReader(req.Body)
@@ -209,6 +214,9 @@ func (t *Tunnel) handleRequest(req TunnelRequest) {
 	if err != nil {
 		resp.Error = fmt.Sprintf("failed to create local request: %v", err)
 		t.sendResponse(resp)
+		if t.OnRequest != nil {
+			t.OnRequest(req.Method, req.Path, 0, time.Since(start).Milliseconds())
+		}
 		return
 	}
 
@@ -223,6 +231,9 @@ func (t *Tunnel) handleRequest(req TunnelRequest) {
 	if err != nil {
 		resp.Error = fmt.Sprintf("local server error: %v", err)
 		t.sendResponse(resp)
+		if t.OnRequest != nil {
+			t.OnRequest(req.Method, req.Path, 0, time.Since(start).Milliseconds())
+		}
 		return
 	}
 	defer httpResp.Body.Close()
@@ -236,11 +247,17 @@ func (t *Tunnel) handleRequest(req TunnelRequest) {
 	if err != nil {
 		resp.Error = fmt.Sprintf("failed to read local response: %v", err)
 		t.sendResponse(resp)
+		if t.OnRequest != nil {
+			t.OnRequest(req.Method, req.Path, httpResp.StatusCode, time.Since(start).Milliseconds())
+		}
 		return
 	}
 	if len(respBody) > maxLocalResponse {
 		resp.Error = "local response too large (10 MB max)"
 		t.sendResponse(resp)
+		if t.OnRequest != nil {
+			t.OnRequest(req.Method, req.Path, httpResp.StatusCode, time.Since(start).Milliseconds())
+		}
 		return
 	}
 
@@ -249,6 +266,9 @@ func (t *Tunnel) handleRequest(req TunnelRequest) {
 	}
 
 	t.sendResponse(resp)
+	if t.OnRequest != nil {
+		t.OnRequest(req.Method, req.Path, httpResp.StatusCode, time.Since(start).Milliseconds())
+	}
 }
 
 func (t *Tunnel) sendResponse(resp TunnelResponse) {

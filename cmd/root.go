@@ -20,9 +20,14 @@ var rootCmd = &cobra.Command{
 	Use:   "portshare",
 	Short: "PortShare CLI to expose local ports to the internet",
 	Long:  `PortShare CLI allows you to expose local web servers to the internet using PortShare tunnels.`,
+	// Version enables `portshare --version`, which the release smoke test and the
+	// Homebrew formula test both rely on.
+	Version: Version,
 }
 
 func Execute() {
+	// Keep --version output identical to the `version` subcommand.
+	rootCmd.SetVersionTemplate("portshare {{.Version}}\n")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

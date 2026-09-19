@@ -88,12 +88,25 @@ var httpCmd = &cobra.Command{
 			_ = config.SaveConfig(cfg)
 		}
 
-		fmt.Printf("Client ID: %s\n", cfg.ClientID)
+		localPortStr := fmt.Sprintf("%d", port)
+		publicURL := ""
 		if cfg.Subdomain != "" {
-			publicURL := fmt.Sprintf("https://%s.%s", cfg.Subdomain, RootDomain)
-			fmt.Printf("Public URL: %s\n\n", publicURL)
-			qrterminal.GenerateHalfBlock(publicURL, qrterminal.L, os.Stdout)
-			fmt.Println()
+			publicURL = fmt.Sprintf("https://%s.%s", cfg.Subdomain, RootDomain)
+		}
+
+		if !JSONOutput {
+			fmt.Printf("%sAuthenticating...%s done\n", ansiGray, ansiReset)
+		}
+		fmt.Printf("Client ID: %s\n", cfg.ClientID)
+
+		if publicURL != "" {
+			if JSONOutput {
+				fmt.Printf("{\"url\":%q,\"port\":%d,\"client_id\":%q}\n", publicURL, port, cfg.ClientID)
+			} else {
+				printBanner(publicURL, localPortStr, cfg.ClientID, "")
+				qrterminal.GenerateHalfBlock(publicURL, qrterminal.L, os.Stdout)
+				fmt.Println()
+			}
 		} else {
 			fmt.Printf("Tip: claim a subdomain for a stable URL: portshare domain claim <name>\n")
 		}
@@ -108,6 +121,11 @@ var httpCmd = &cobra.Command{
 			ServerURL: serverURL,
 			ClientID:  cfg.ClientID,
 			LocalPort: port,
+			OnRequest: func(method, path string, status int, durationMs int64) {
+				if !JSONOutput {
+					PrintRequest(method, path, status, durationMs)
+				}
+			},
 		}
 		
 		tcpAddr, _ := cmd.Flags().GetString("tcp")
